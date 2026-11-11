@@ -1,0 +1,53 @@
+x-proxy-environment: &proxy-environment
+  HTTP_PROXY: ${http_proxy:?Launch Compose through /usr/local/bin/proxy.sh}
+  HTTPS_PROXY: ${https_proxy:?Launch Compose through /usr/local/bin/proxy.sh}
+  NO_PROXY: ${NO_PROXY:?Launch Compose through /usr/local/bin/proxy.sh}
+  http_proxy: ${http_proxy:?Launch Compose through /usr/local/bin/proxy.sh}
+  https_proxy: ${https_proxy:?Launch Compose through /usr/local/bin/proxy.sh}
+  no_proxy: ${NO_PROXY:?Launch Compose through /usr/local/bin/proxy.sh}
+
+services:
+  edvabe:
+    image: ghcr.io/contember/edvabe:main
+    command: ["serve"]
+    restart: unless-stopped
+    # The proxy from proxy.sh listens on host loopback (127.0.0.1:7897).
+    network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      <<: *proxy-environment
+      # Docker CLI uses this config to pass proxy args into builds and
+      # proxy variables into containers it creates.
+      DOCKER_CONFIG: /docker-config
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - edvabe-data:/data
+      - ./docker-proxy-config.json:/docker-config/config.json:ro
+
+  mediawiki-mcp:
+    image: ghcr.io/professionalwiki/mediawiki-mcp-server:0.20.1
+    restart: unless-stopped
+    # Bind only on Docker's host bridge so sibling E2B sandboxes can reach it;
+    # it is not published on the LAN interfaces.
+    network_mode: host
+    environment:
+      <<: *proxy-environment
+      CONFIG: /app/config.json
+      MCP_TRANSPORT: http
+      PORT: ${MW_MCP_PORT:-18080}
+      MCP_BIND: ${MW_MCP_BIND:-172.17.0.1}
+      MCP_ALLOWED_HOSTS: ${MW_MCP_BIND:-172.17.0.1}
+      MCP_TRUSTED_HOSTS: ${MCP_TRUSTED_HOSTS:-}
+      # Shared bot identity is restricted to this local, single-user dev setup.
+      MCP_ALLOW_STATIC_FALLBACK: "true"
+      MW_SERVER: ${MW_SERVER:?Set MW_SERVER in .env}
+      MW_ARTICLE_PATH: ${MW_ARTICLE_PATH:-/wiki}
+      MW_SCRIPT_PATH: ${MW_SCRIPT_PATH:-/w}
+      MW_USER: ${MW_USER:?Set MW_USER in .env}
+      MW_PASS: ${MW_PASS:?Set MW_PASS in .env}
+    volumes:
+      - ./mediawiki-mcp-config.json:/app/config.json:ro
+
+volumes:
+  edvabe-data:

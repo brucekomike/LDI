@@ -1,0 +1,16 @@
+{
+  "allowWikiManagement": false,
+  "defaultWiki": "dev-wiki",
+  "wikis": {
+    "dev-wiki": {
+      "sitename": "Development Wiki",
+      "server": "${MW_SERVER}",
+      "articlepath": "${MW_ARTICLE_PATH}",
+      "scriptpath": "${MW_SCRIPT_PATH}",
+      "private": true,
+      "username": "${MW_USER}",
+      "password": "${MW_PASS}",
+      "attributeEdits": true
+    }
+  }
+}
